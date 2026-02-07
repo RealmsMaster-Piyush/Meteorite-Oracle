@@ -7,17 +7,28 @@ import numpy as np
 st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️", layout="wide")
 
 # 2. Load the "Brain" (Model) directly into the app
+import os
+
+# 2. Load the "Brain" (Model) with absolute paths for the cloud
 @st.cache_resource
 def load_model():
-    # We use a relative path so it works both on your PC and the Cloud
-    import os
+    # This finds the exact folder where app.py lives on the Streamlit server
     base_path = os.path.dirname(__file__)
     model_path = os.path.join(base_path, "meteorite_model.pkl")
     encoder_path = os.path.join(base_path, "label_encoder.pkl")
     
-    model = pickle.load(open(model_path, "rb"))
-    encoder = pickle.load(open(encoder_path, "rb"))
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+    with open(encoder_path, "rb") as f:
+        encoder = pickle.load(f)
     return model, encoder
+
+# Actually call the function and assign the variables!
+try:
+    model, encoder = load_model()
+except Exception as e:
+    st.error(f"Critical Error: Could not load model files. {e}")
+    st.stop() # This prevents the NameError later
 
 # 3. Cinematic Comet Animation
 def cinematic_comet():
@@ -71,4 +82,5 @@ if predict_btn:
         st.warning(f"🚨 RARE CLASSIFICATION: {prediction.upper()}")
     else:
         st.success(f"✅ Predicted Class: {prediction}")
+
 
