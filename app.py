@@ -3,36 +3,45 @@ import pandas as pd
 import pickle
 import numpy as np
 import os
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
 
-# 1. Page Config
-st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️")
+# 1. Page Configuration
+st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️", layout="wide")
 
-# 2. Robust Model Loader
+# Suppress version warnings from your Python 3.14/1.8.0 mismatch
+warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+
+# 2. THE BRAIN: Modular ML Loader
 @st.cache_resource
 def load_ml_assets():
     base_path = os.path.dirname(__file__)
+    m_path = os.path.join(base_path, "meteorite_model.pkl")
+    e_path = os.path.join(base_path, "label_encoder.pkl")
     
-    # Verify file names match your GitHub exactly!
-    model_file = os.path.join(base_path, "meteorite_model.pkl")
-    encoder_file = os.path.join(base_path, "label_encoder.pkl")
-    
-    # This 'rb' (read binary) is where STACK_GLOBAL usually fails 
-    # if versions don't match.
-    with open(model_file, "rb") as f:
-        model = pickle.load(f)
-    with open(encoder_file, "rb") as f:
-        encoder = pickle.load(f)
-        
-    return model, encoder
+    # Check if files exist before trying to load
+    if not os.path.exists(m_path) or not os.path.exists(e_path):
+        return None, None, "Model files not found in the repository!"
 
-try:
-    model, encoder = load_ml_assets()
-except Exception as e:
-    st.error(f"ML Loading Error: {e}")
-    st.info("Tip: Try re-saving your model using 'protocol=4' on your local PC.")
-    st.stop()
+    try:
+        # Standard load
+        with open(m_path, "rb") as f:
+            model = pickle.load(f)
+        with open(e_path, "rb") as f:
+            encoder = pickle.load(f)
+        return model, encoder, None
+    except Exception:
+        try:
+            # Fallback for cross-version Python loading (Latin-1)
+            with open(m_path, "rb") as f:
+                model = pickle.load(f, encoding='latin1')
+            with open(e_path, "rb") as f:
+                encoder = pickle.load(f, encoding='latin1')
+            return model, encoder, None
+        except Exception as e:
+            return None, None, str(e)
 
-# 3. Cinematic Comet Animation
+# 3. THE FACE: Cinematic Animation
 def cinematic_comet():
     st.markdown(
         """
@@ -44,18 +53,25 @@ def cinematic_comet():
         }
         .comet-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden; }
         .giant-comet { position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, #fff 0%, #00d4ff 10%, rgba(0,50,255,0.5) 30%, transparent 70%); border-radius: 50%; filter: blur(20px); box-shadow: 0 0 100px 50px rgba(0,150,255,0.8); animation: comet-fly 2.5s ease-in forwards; }
-        .giant-comet::after { content: ''; position: absolute; top: 50%; left: 50%; width: 1000px; height: 150px; background: linear-gradient(to right, rgba(255,255,255,0.8), rgba(0,150,255,0.4), transparent); transform: translateY(-50%) rotate(-10deg); transform-origin: left; filter: blur(10px); }
         </style>
         <div class="comet-container"><div class="giant-comet"></div></div>
         """,
         unsafe_allow_html=True
     )
 
-# 4. Main UI
+# 4. MAIN APP LOGIC
 st.title("☄️ Meteorite Oracle: Global Classifier")
 st.markdown("---")
 
+model, encoder, error_msg = load_ml_assets()
+
+if error_msg:
+    st.error(f"❌ ML Loading Error: {error_msg}")
+    st.info("Ensure your .pkl files are in the main GitHub folder.")
+    st.stop()
+
 col1, col2 = st.columns([1, 2])
+
 with col1:
     st.header("🔍 Input Data")
     mass = st.number_input("Mass (grams)", min_value=0.0, value=500.0)
@@ -68,22 +84,24 @@ with col2:
     st.header("Discovery Location")
     st.map(data={"lat": [lat], "lon": [long]}, zoom=2)
 
-# 5. Prediction logic (Now internal!)
 if predict_btn:
-    # Prepare features
+    # Prepare data for the Brain
     features = np.array([[mass, year, lat, long]])
-    pred_index = model.predict(features)[0]
-    prediction = encoder.inverse_transform([pred_index])[0]
     
-    # Rare logic + Scientific Override for big masses
-    is_rare = "Iron" in prediction or "Stony-Iron" in prediction or mass >= 100000.0
-    
-    st.markdown("---")
-    if is_rare:
-        cinematic_comet()
-        st.warning(f"🚨 RARE CLASSIFICATION: {prediction.upper()}")
-    else:
-        st.success(f"✅ Predicted Class: {prediction}")
-
-
-
+    # Run the Prediction
+    try:
+        pred_index = model.predict(features)[0]
+        prediction = encoder.inverse_transform([pred_index])[0]
+        
+        # Check for RARE (Iron) or Massive Find
+        is_rare = "Iron" in prediction or mass >= 100000.0
+        
+        st.markdown("---")
+        if is_rare:
+            cinematic_comet()
+            st.warning(f"🚨 RARE CLASSIFICATION: {prediction.upper()}")
+        else:
+            st.success(f"✅ Predicted Class: {prediction}")
+            
+    except Exception as e:
+        st.error(f"Prediction Error: {e}")
