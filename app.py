@@ -7,16 +7,17 @@ import numpy as np
 st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️", layout="wide")
 
 # 2. Load the "Brain" (Model) directly into the app
-@st.cache_resource # This keeps the model in memory for speed
+@st.cache_resource
 def load_model():
-    model = pickle.load(open("meteorite_model.pkl", "rb"))
-    encoder = pickle.load(open("label_encoder.pkl", "rb"))
+    # We use a relative path so it works both on your PC and the Cloud
+    import os
+    base_path = os.path.dirname(__file__)
+    model_path = os.path.join(base_path, "meteorite_model.pkl")
+    encoder_path = os.path.join(base_path, "label_encoder.pkl")
+    
+    model = pickle.load(open(model_path, "rb"))
+    encoder = pickle.load(open(encoder_path, "rb"))
     return model, encoder
-
-try:
-    model, encoder = load_model()
-except:
-    st.error("Model files not found! Make sure .pkl files are in the same folder.")
 
 # 3. Cinematic Comet Animation
 def cinematic_comet():
@@ -70,3 +71,4 @@ if predict_btn:
         st.warning(f"🚨 RARE CLASSIFICATION: {prediction.upper()}")
     else:
         st.success(f"✅ Predicted Class: {prediction}")
+
