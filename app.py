@@ -2,33 +2,35 @@ import streamlit as st
 import pandas as pd
 import pickle
 import numpy as np
-
-# 1. Page Config
-st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️", layout="wide")
-
-# 2. Load the "Brain" (Model) directly into the app
 import os
 
-# 2. Load the "Brain" (Model) with absolute paths for the cloud
+# 1. Page Config
+st.set_page_config(page_title="Meteorite Oracle", page_icon="☄️")
+
+# 2. Robust Model Loader
 @st.cache_resource
-def load_model():
-    # This finds the exact folder where app.py lives on the Streamlit server
+def load_ml_assets():
     base_path = os.path.dirname(__file__)
-    model_path = os.path.join(base_path, "meteorite_model.pkl")
-    encoder_path = os.path.join(base_path, "label_encoder.pkl")
     
-    with open(model_path, "rb") as f:
+    # Verify file names match your GitHub exactly!
+    model_file = os.path.join(base_path, "meteorite_model.pkl")
+    encoder_file = os.path.join(base_path, "label_encoder.pkl")
+    
+    # This 'rb' (read binary) is where STACK_GLOBAL usually fails 
+    # if versions don't match.
+    with open(model_file, "rb") as f:
         model = pickle.load(f)
-    with open(encoder_path, "rb") as f:
+    with open(encoder_file, "rb") as f:
         encoder = pickle.load(f)
+        
     return model, encoder
 
-# Actually call the function and assign the variables!
 try:
-    model, encoder = load_model()
+    model, encoder = load_ml_assets()
 except Exception as e:
-    st.error(f"Critical Error: Could not load model files. {e}")
-    st.stop() # This prevents the NameError later
+    st.error(f"ML Loading Error: {e}")
+    st.info("Tip: Try re-saving your model using 'protocol=4' on your local PC.")
+    st.stop()
 
 # 3. Cinematic Comet Animation
 def cinematic_comet():
@@ -82,5 +84,6 @@ if predict_btn:
         st.warning(f"🚨 RARE CLASSIFICATION: {prediction.upper()}")
     else:
         st.success(f"✅ Predicted Class: {prediction}")
+
 
 
